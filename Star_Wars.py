@@ -18,6 +18,57 @@ blue = (0,0,255)
 white = (255,255,255)
 black = (0,0,0)
 
+class Player:
+
+    def __init__(self):
+        self.x = MAXX/2 - 50
+        self.y = MAXY - 100
+        self.speed = 10
+        self.changeX = 0 
+        self.bulletX = self.x
+        self.bulletY = self.y-12
+        self.bullet_speed = 15
+        self.bullet_state = True
+        self.bullet_show = False
+    
+    def SetImage(self):
+        self.playerimg = pygame.image.load('images/player.png')
+        self.bulletimg = pygame.image.load('images/ammo.png')
+    
+    def BulletDisplay(self,win):
+        win.blit(self.bulletimg,(self.bulletX,self.bulletY))
+    
+    def PlayerDisplay(self,win):
+        win.blit(self.playerimg,(self.x,self.y))
+    
+    def CheckBoundaries(self):
+        if self.x >= MAXX-64:
+            self.x = MAXX-64
+        elif self.x <= MINX:
+            self.x = MINX
+    
+    def CheckBulletBoundaries(self):
+        if self.bulletY <= MINY and self.bullet_show:
+            self.bulletY = self.y + 32
+            self.bullet_show = False
+            self.bullet_state = True
+    
+    def UpdatePlayerX(self):
+        self.x += self.changeX
+    
+    def ShootBullet(self):
+        self.bulletX = self.x + 17
+        self.bulletY = self.y + 32
+        self.bullet_show = True
+        self.bullet_state = False     
+
+    def BulletCollision(self):
+        self.bulletY = self.y + 32
+        self.bullet_show = False
+        self.bullet_state = True
+
+    def MoveBullet(self):
+        self.bulletY -= self.bullet_speed   
 
 class Enemy:
 
@@ -72,10 +123,6 @@ class Enemy:
         self.health = 0 
         status = self.CheckDeath()
 
-def Player_Init():
-    playerimg = pygame.image.load('images/player.png')
-    return playerimg
-
 def Game_Display():
     screen = pygame.display.set_mode((MAXX,MAXY))
     pygame.display.set_caption("Star Wars 1.0")
@@ -83,23 +130,19 @@ def Game_Display():
     pygame.display.set_icon(icon)
     return screen
 
-def Bullet_Display(screen,bulletimg,x,y):
-    screen.blit(bulletimg,(x,y))
-
-def Player_Display(screen,playerimg,x,y):
-    screen.blit(playerimg,(x,y))
-
 def Run_Game():
 
     #Initializing window, images 
     screen = Game_Display()
-    playerimg = Player_Init()
+    player = Player()
     enemies =[]
     for i in range(5):
         enemies.append(Enemy())
         enemies[i].SetImage('images/alien' + str(i+1) +'.png')
+
     bgimg = pygame.image.load('images/background.png')
-    bulletimg = pygame.image.load('images/ammo.png')
+
+    player.SetImage()
 
     #Live score display and Level display
     font = pygame.font.Font('freesansbold.ttf', 25)
@@ -116,20 +159,7 @@ def Run_Game():
     text_levelRect.center = (level_rectx,level_recty)
     textRect.center = (score_rectx,score_recty)   
 
-    #Initializing variables for player movement 
-    playerX = MAXX/2 - 50
-    playerY = MAXY-100
-    changeX = 0
-    normal_speed = 10
-
     death_delay=1
-
-    #Initializing bullet movement variables
-    bulletX = playerX
-    bulletY = playerY-12
-    bullet_speed = 15
-    bullet_state = True
-    bullet_show = False
 
     level = 1
     score = 0 
@@ -150,21 +180,18 @@ def Run_Game():
 
                 #Player movement with arrow keys
                 if event.key==pygame.K_LEFT:
-                    changeX = -normal_speed
+                    player.changeX = -player.speed
                 if event.key==pygame.K_RIGHT:
-                    changeX = normal_speed
+                    player.changeX = player.speed
 
                 #If space bar pressed for shooting bullet
-                if event.key==pygame.K_SPACE and bullet_state:
-                    bulletX = playerX + 17
-                    bullletY = playerY + 32
-                    bullet_show = True
-                    bullet_state = False
+                if event.key==pygame.K_SPACE and player.bullet_state:
+                    player.ShootBullet()
             
             #If key is released, for player movement 
             if event.type==pygame.KEYUP:
                 if event.key==pygame.K_LEFT or event.key==pygame.K_RIGHT:
-                    changeX = 0
+                    player.changeX = 0
         
         display_enemies = score//100
         if display_enemies <= 4:
@@ -174,9 +201,6 @@ def Run_Game():
             for i in range(5):
                 enemies[i].show = True
 
-        #Change of location of player and enemy 
-        playerX+=changeX
-
         for x in enemies:
 
             if x.show == True:
@@ -184,11 +208,9 @@ def Run_Game():
                 x.MoveEnemy()
 
                 #Checking if bullet has collided with enemy 
-                collision = x.CheckCollision(bulletX,bulletY)
+                collision = x.CheckCollision(player.bulletX,player.bulletY)
                 if collision:
-                    bulletY = playerY+32
-                    bullet_show = False
-                    bullet_state = True
+                    player.BulletCollision()
                     score += 10
                     if x.CheckDeath():
                         score += 10
@@ -202,6 +224,9 @@ def Run_Game():
                         if inter_coll:
                             x.EnemyToEnemyCollison(y)
 
+        #Update Player coordinates
+        player.UpdatePlayerX()
+
         level_prev = level        
         level = score//100 + 1
         
@@ -211,15 +236,12 @@ def Run_Game():
                     x.LevelChange()
 
         #Checking if player hit end of game window
-        if playerX>=MAXX-64:
-            playerX = MAXX-64
-        elif playerX<=MINX:
-            playerX = MINX
+        player.CheckBoundaries()
 
         #If space bar was pressed, display the bullet 
-        if bullet_show:
-            Bullet_Display(screen,bulletimg,bulletX,bulletY)
-            bulletY-=bullet_speed
+        if player.bullet_show:
+            player.BulletDisplay(screen)
+            player.MoveBullet()
 
         #Display Live Score
         text = font.render(score_template + str(score) + ' ', True, black, white)
@@ -230,10 +252,7 @@ def Run_Game():
         screen.blit(text_level,text_levelRect)
 
         #If bullet exits the screen
-        if bulletY<=MINY and bullet_show:
-            bulletY = playerY+32
-            bullet_show = False
-            bullet_state = True
+        player.CheckBulletBoundaries()
 
         #If bullet hits the enemy 
         for x in enemies:
@@ -241,7 +260,7 @@ def Run_Game():
                 #Enemy Display 
                 x.DisplayEnemy(screen)
 
-        Player_Display(screen,playerimg,playerX,playerY)
+        player.PlayerDisplay(screen)
         pygame.display.update()   
 
 def main():
