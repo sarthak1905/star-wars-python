@@ -11,6 +11,67 @@ MAXY = 600
 MINX = 0
 MINY = 0
 
+#Colors
+red = (255,0,0)
+green = (0,255,0)
+blue = (0,0,255)
+white = (255,255,255)
+black = (0,0,0)
+
+
+class Enemy:
+
+    def __init__(self):
+        self.max_health = 3
+        self.health = self.max_health
+        self.show = False
+        self.x = random.randint(50,MAXX-50)
+        self.y = 25
+        self.speedx = 5
+        self.speedy = 1
+    
+    def SetImage(self,image):
+        self.image = pygame.image.load(image)
+
+    def DisplayEnemy(self,win):
+        win.blit(self.image,(self.x,self.y))
+
+    def MoveEnemy(self):
+        self.x += self.speedx
+        self.y += self.speedy 
+
+    def CheckBoundaries(self):
+        if self.x >= MAXX-64:
+            self.x = MAXX-64
+            self.speedx = -self.speedx
+        elif self.x <= MINX:
+            self.x = MINX
+            self.speedx = -self.speedx
+
+    def CheckCollision(self,X,Y):
+        distance = math.sqrt((self.x-X)**2 + (self.y-Y)**2)
+        if distance < 50:
+            self.health -= 1
+            return True
+        else:
+            return False
+    def EnemyToEnemyCollison(self,enemy2):
+        self.speedx = -self.speedx
+        enemy2.speedx = -enemy2.speedx
+    
+    def CheckDeath(self):
+        if self.health == 0:
+            self.show = False
+            self.x = random.randint(50,MAXX-50)
+            self.y = 25
+            self.health = self.max_health
+            return True
+        return False
+    
+    def LevelChange(self):
+        self.health = 0 
+        status = self.CheckDeath()
+
 def Player_Init():
     playerimg = pygame.image.load('images/player.png')
     return playerimg
@@ -25,31 +86,35 @@ def Game_Display():
 def Bullet_Display(screen,bulletimg,x,y):
     screen.blit(bulletimg,(x,y))
 
-def Enemy_Display(screen,enemyimg,x,y):
-    screen.blit(enemyimg,(x,y))
-
 def Player_Display(screen,playerimg,x,y):
     screen.blit(playerimg,(x,y))
-
-def If_Collison(enemyX,enemyY,bulletX,bulletY):
-    distance = math.sqrt((enemyX-bulletX)**2 + (enemyY-bulletY)**2)
-    if distance < 50:
-        return True
-    else:
-        return False
 
 def Run_Game():
 
     #Initializing window, images 
     screen = Game_Display()
     playerimg = Player_Init()
-    enemyimg1 = pygame.image.load('images/alien1.png')
-    enemyimg2 = pygame.image.load('images/alien2.png')
-    enemyimg3 = pygame.image.load('images/alien3.png')
-    enemyimg4 = pygame.image.load('images/alien4.png')
-    enemyimg5 = pygame.image.load('images/alien5.png')
+    enemies =[]
+    for i in range(5):
+        enemies.append(Enemy())
+        enemies[i].SetImage('images/alien' + str(i+1) +'.png')
     bgimg = pygame.image.load('images/background.png')
     bulletimg = pygame.image.load('images/ammo.png')
+
+    #Live score display and Level display
+    font = pygame.font.Font('freesansbold.ttf', 25)
+    score_template = ' Score: '
+    level_display = ' Level: '
+    text_level = font.render(level_display, True, black, white)
+    text = font.render(score_template, True, black, white)
+    text_levelRect = text_level.get_rect()
+    textRect = text.get_rect()
+    level_rectx = MAXX/2
+    level_recty = 15
+    score_rectx = 40
+    score_recty = 15
+    text_levelRect.center = (level_rectx,level_recty)
+    textRect.center = (score_rectx,score_recty)   
 
     #Initializing variables for player movement 
     playerX = MAXX/2 - 50
@@ -57,15 +122,6 @@ def Run_Game():
     changeX = 0
     normal_speed = 10
 
-    #Initializing enemy movement variables
-    enemy_speedH = 5
-    enemy_speedV = 1
-    enemyX = random.randint(50,MAXX-50)
-    enemyX_change = enemy_speedH
-    enemyY_change = enemy_speedV
-    enemyY = 50
-    enemy_health = 3
-    dead = False
     death_delay=1
 
     #Initializing bullet movement variables
@@ -74,6 +130,9 @@ def Run_Game():
     bullet_speed = 15
     bullet_state = True
     bullet_show = False
+
+    level = 1
+    score = 0 
 
     running = True
     while running:
@@ -107,61 +166,81 @@ def Run_Game():
                 if event.key==pygame.K_LEFT or event.key==pygame.K_RIGHT:
                     changeX = 0
         
+        display_enemies = score//100
+        if display_enemies <= 4:
+            for i in range(display_enemies+1):
+                enemies[i].show = True
+        else:
+            for i in range(5):
+                enemies[i].show = True
+
         #Change of location of player and enemy 
         playerX+=changeX
-        enemyX += enemyX_change
-        enemyY += enemyY_change
 
-        #If bullet hits the enemy 
-        if dead:
-            if death_delay>100:
-                dead=False
-                death_delay=1
-                Enemy_Display(screen,enemyimg1,enemyX,enemyY)
+        for x in enemies:
 
-            #Delaying respawn of enemy     
-            death_delay+=1
-        else:
-            #Enemy Display 
-            Enemy_Display(screen,enemyimg1,enemyX,enemyY)
+            if x.show == True:
         
+                x.MoveEnemy()
+
+                #Checking if bullet has collided with enemy 
+                collision = x.CheckCollision(bulletX,bulletY)
+                if collision:
+                    bulletY = playerY+32
+                    bullet_show = False
+                    bullet_state = True
+                    score += 10
+                    if x.CheckDeath():
+                        score += 10
+                
+                x.CheckBoundaries()
+
+                for y in enemies:
+
+                    if y.show == True and y!=x:
+                        inter_coll = x.CheckCollision(y.x,y.y)
+                        if inter_coll:
+                            x.EnemyToEnemyCollison(y)
+
+        level_prev = level        
+        level = score//100 + 1
+        
+        if level > level_prev:
+            for x in enemies:
+                if x.show == True:
+                    x.LevelChange()
+
         #Checking if player hit end of game window
         if playerX>=MAXX-64:
             playerX = MAXX-64
         elif playerX<=MINX:
             playerX = MINX
-        
-        #Checking if enemy hit end of game window
-        if enemyX>=MAXX-64:
-            enemyX = MAXX-64
-            enemyX_change=-enemy_speedH
-        elif enemyX<=MINX:
-            enemyX = MINX
-            enemyX_change = enemy_speedH
 
         #If space bar was pressed, display the bullet 
         if bullet_show:
             Bullet_Display(screen,bulletimg,bulletX,bulletY)
             bulletY-=bullet_speed
 
+        #Display Live Score
+        text = font.render(score_template + str(score) + ' ', True, black, white)
+        screen.blit(text,textRect)
+
+        #Level Display
+        text_level = font.render(level_display + str(level) + ' ', True, black, white)
+        screen.blit(text_level,text_levelRect)
+
         #If bullet exits the screen
         if bulletY<=MINY and bullet_show:
             bulletY = playerY+32
             bullet_show = False
             bullet_state = True
-        
-        #Checking if bullet has collided with enemy 
-        collision = If_Collison(enemyX,enemyY,bulletX,bulletY)
-        if collision:
-            enemy_health -= 1
-            bulletY = playerY+32
-            bullet_show = False
-            bullet_state = True
-            if enemy_health==0:
-                dead=True
-                enemyX = random.randint(50,MAXX-50)
-                enemyY=50
-                enemy_health=3
+
+        #If bullet hits the enemy 
+        for x in enemies:
+            if x.show == True:
+                #Enemy Display 
+                x.DisplayEnemy(screen)
+
         Player_Display(screen,playerimg,playerX,playerY)
         pygame.display.update()   
 
