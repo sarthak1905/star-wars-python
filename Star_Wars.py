@@ -2,6 +2,7 @@ import pygame
 import random
 import math
 import time
+import sys
 
 pygame.init()
 
@@ -30,7 +31,8 @@ class Player:
         self.bullet_speed = 15
         self.bullet_state = True
         self.bullet_show = False
-    
+        self.lives = 3
+
     def SetImage(self):
         self.playerimg = pygame.image.load('images/player.png')
         self.bulletimg = pygame.image.load('images/ammo.png')
@@ -123,6 +125,11 @@ class Enemy:
         self.health = 0 
         status = self.CheckDeath()
 
+    def CheckEnd(self):
+        if self.y >= MAXY - 200:
+            return True
+        return False
+
 def Game_Display():
     screen = pygame.display.set_mode((MAXX,MAXY))
     pygame.display.set_caption("Star Wars 1.0")
@@ -144,20 +151,45 @@ def Run_Game():
 
     player.SetImage()
 
-    #Live score display and Level display
+    #Live score display, Level display and Lives Display
     font = pygame.font.Font('freesansbold.ttf', 25)
     score_template = ' Score: '
     level_display = ' Level: '
+    lives_display = ' Lives: '
     text_level = font.render(level_display, True, black, white)
     text = font.render(score_template, True, black, white)
+    text_lives = font.render(lives_display, True, black, white)
     text_levelRect = text_level.get_rect()
     textRect = text.get_rect()
+    text_livesRect = text_lives.get_rect()
     level_rectx = MAXX/2
     level_recty = 15
     score_rectx = 40
     score_recty = 15
+    lives_rectx = MAXX - 65
+    lives_recty = 15
     text_levelRect.center = (level_rectx,level_recty)
-    textRect.center = (score_rectx,score_recty)   
+    textRect.center = (score_rectx,score_recty)
+    text_livesRect.center = (lives_rectx,lives_recty)   
+
+    #Level Change Display
+    font_l = pygame.font.Font('freesansbold.ttf', 40)
+    message_l = ' LEVEL '
+    text_l = font_l.render(message_l, True, red, black)
+    text_lRect = text_l.get_rect()
+    message_lx = MAXX/2
+    message_ly = MAXY/2
+    text_lRect.center = (message_lx,message_ly)
+
+    #Game over display 
+    font_c = pygame.font.Font('freesansbold.ttf', 40)
+    message_c = ' Game Over! Your score was: '
+    text_c = font_c.render(message_c, True, white, black)
+    textRect_c = text_c.get_rect()
+    messagex = MAXX/2
+    messagey = MAXY/4
+    textRect_c.center = (messagex, messagey)
+    replay_quit_img = pygame.image.load('images/game_close.png')
 
     death_delay=1
 
@@ -165,6 +197,12 @@ def Run_Game():
     score = 0 
 
     running = True
+    game_over = False
+    play_again = False
+    break_out = False
+    level_change = False
+    level_delay = 0
+
     while running:
         screen.fill((0,0,0))
 
@@ -175,93 +213,154 @@ def Run_Game():
             if event.type==pygame.QUIT:
                 running = False
 
-            #If key is pressed
-            if event.type==pygame.KEYDOWN:
+            if not game_over:
+                #If key is pressed
+                if event.type==pygame.KEYDOWN:
 
-                #Player movement with arrow keys
-                if event.key==pygame.K_LEFT:
-                    player.changeX = -player.speed
-                if event.key==pygame.K_RIGHT:
-                    player.changeX = player.speed
+                    #Player movement with arrow keys
+                    if event.key==pygame.K_LEFT:
+                        player.changeX = -player.speed
+                    if event.key==pygame.K_RIGHT:
+                        player.changeX = player.speed
 
-                #If space bar pressed for shooting bullet
-                if event.key==pygame.K_SPACE and player.bullet_state:
-                    player.ShootBullet()
-            
-            #If key is released, for player movement 
-            if event.type==pygame.KEYUP:
-                if event.key==pygame.K_LEFT or event.key==pygame.K_RIGHT:
-                    player.changeX = 0
-        
-        display_enemies = score//100
-        if display_enemies <= 4:
-            for i in range(display_enemies+1):
-                enemies[i].show = True
-        else:
-            for i in range(5):
-                enemies[i].show = True
-
-        for x in enemies:
-
-            if x.show == True:
-        
-                x.MoveEnemy()
-
-                #Checking if bullet has collided with enemy 
-                collision = x.CheckCollision(player.bulletX,player.bulletY)
-                if collision:
-                    player.BulletCollision()
-                    score += 10
-                    if x.CheckDeath():
-                        score += 10
+                    #If space bar pressed for shooting bullet
+                    if event.key==pygame.K_SPACE and player.bullet_state:
+                        player.ShootBullet()
                 
-                x.CheckBoundaries()
+                #If key is released, for player movement 
+                if event.type==pygame.KEYUP:
+                    if event.key==pygame.K_LEFT or event.key==pygame.K_RIGHT:
+                        player.changeX = 0
+            
+            else:
+                                
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if mouse[0] in range(208,350) and mouse[1] in range(475,540):
+                        break_out = True
+                        play_again = True 
+                        break
+                    elif mouse[0] in range(454,605) and mouse[1] in range(475,540):
+                        break_out = True
+                        play_again = False
+                        break
 
-                for y in enemies:
-
-                    if y.show == True and y!=x:
-                        inter_coll = x.CheckCollision(y.x,y.y)
-                        if inter_coll:
-                            x.EnemyToEnemyCollison(y)
-
-        #Update Player coordinates
-        player.UpdatePlayerX()
-
-        level_prev = level        
-        level = score//100 + 1
+        if break_out:
+            break
         
-        if level > level_prev:
-            for x in enemies:
-                if x.show == True:
-                    x.LevelChange()
+        if not game_over:
 
-        #Checking if player hit end of game window
-        player.CheckBoundaries()
+            if not level_change:
 
-        #If space bar was pressed, display the bullet 
-        if player.bullet_show:
-            player.BulletDisplay(screen)
-            player.MoveBullet()
+                display_enemies = score//100
+                if display_enemies <= 4:
+                    for i in range(display_enemies+1):
+                        enemies[i].show = True
+                else:
+                    for i in range(5):
+                        enemies[i].show = True
 
-        #Display Live Score
-        text = font.render(score_template + str(score) + ' ', True, black, white)
-        screen.blit(text,textRect)
+                for x in enemies:
 
-        #Level Display
-        text_level = font.render(level_display + str(level) + ' ', True, black, white)
-        screen.blit(text_level,text_levelRect)
+                    if x.show == True:
+                
+                        x.MoveEnemy()
 
-        #If bullet exits the screen
-        player.CheckBulletBoundaries()
+                        #Checking if bullet has collided with enemy 
+                        collision = x.CheckCollision(player.bulletX,player.bulletY)
+                        if collision:
+                            player.BulletCollision()
+                            score += 10
+                            if x.CheckDeath():
+                                score += 10
+                        
+                        x.CheckBoundaries()
 
-        #If bullet hits the enemy 
-        for x in enemies:
-            if x.show == True:
-                #Enemy Display 
-                x.DisplayEnemy(screen)
+                        for y in enemies:
 
-        player.PlayerDisplay(screen)
+                            if y.show == True and y!=x:
+                                inter_coll = x.CheckCollision(y.x,y.y)
+                                if inter_coll:
+                                    x.EnemyToEnemyCollison(y)
+                        
+                        if x.CheckEnd():
+                            x.health = 0 
+                            status = x.CheckDeath()
+                            player.lives -= 1
+                            if player.lives == 0:
+                                game_over = True
+
+                #Update Player coordinates
+                player.UpdatePlayerX()
+
+                #Update Level Change
+                level_prev = level        
+                level = score//100 + 1
+                
+                if level > level_prev:
+                    for x in enemies:
+                        if x.show == True:
+                            x.LevelChange()
+                    level_change = True
+                    level_delay = 0
+
+                #Checking if player hit end of game window
+                player.CheckBoundaries()
+
+                #If space bar was pressed, display the bullet 
+                if player.bullet_show:
+                    player.BulletDisplay(screen)
+                    player.MoveBullet()
+
+                #Display Live Score
+                text = font.render(score_template + str(score) + ' ', True, black, white)
+                screen.blit(text,textRect)
+
+                #Level Display
+                text_level = font.render(level_display + str(level) + ' ', True, black, white)
+                screen.blit(text_level,text_levelRect)
+
+                #Lives Display
+                text_lives = font.render(lives_display + str(player.lives) + ' ', True, black, white)
+                screen.blit(text_lives,text_livesRect)
+
+                #If bullet exits the screen
+                player.CheckBulletBoundaries()
+
+                for x in enemies:
+                    if x.show == True:
+                        #Enemy Display 
+                        x.DisplayEnemy(screen)
+                
+                player.PlayerDisplay(screen)
+            
+            else:
+                if level_delay < 50:
+                    text_l = font.render(message_l + str(level) + ' ', True, red, black)
+                    screen.blit(text_l,text_lRect)
+                else:
+                    level_change = False
+                    level_delay = -1
+                level_delay += 1
+
+        else:
+            screen.fill(black)
+            text_c = font_c.render(message_c + str(score) + ' ', True, white, black)
+
+            #Display final score
+            screen.blit(text_c,textRect_c)
+
+            #Display Play or Quit 
+            screen.blit(replay_quit_img, (MAXX/5,2*MAXY/3))
+
+            #Mouse coordinates
+            mouse = pygame.mouse.get_pos()
+
         pygame.display.update()   
+    
+    if play_again:
+        Run_Game()
+    pygame.quit()
+    sys.exit(0)
 
 def main():
     Run_Game()
