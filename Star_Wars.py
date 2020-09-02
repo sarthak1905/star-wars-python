@@ -343,7 +343,7 @@ def Run_Game():
                 level_delay += 1
 
         else:
-            screen.fill(black)
+            screen.blit(bgimg,(0,0))
             text_c = font_c.render(message_c + str(score) + ' ', True, white, black)
 
             #Display final score
