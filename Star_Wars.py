@@ -194,7 +194,7 @@ def Run_Game():
     death_delay=1
 
     level = 1
-    score = 0 
+    score = 0  
 
     running = True
     game_over = False
