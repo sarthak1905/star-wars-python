@@ -26,3 +26,6 @@
  take care of exceptions and cause sufficient delay, the usage and extent of pygame is thoroughly explored. 
  * Secondly, the use of Object Oriented Programming in the project helps one develop the key concepts required for handling objects, using instaces, using dunder methods, etc.
  * Lastly, one can learn the multi-file project framework of python by importing media files and modifying them. 
+
+ ## Future updates
+ Future updates may include a voice recognition based control system, under development!
