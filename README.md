@@ -11,7 +11,8 @@
  concepts such as encapsulation, abstraction and modularization have also been used to make the code easier to maintain and faciliate readibilty.
  
  ## Components
- This project contains a folder named 'images' which contains all the relevant media files and a .py file named Star_Wars.py
+ This project contains a folder named 'images' which contains all the relevant media files and a .py file named Star_Wars.py. Moreover, there is a requirements.txt file and git
+ attributes files.
  
  ## Instructions to play
  1. Use the left and right arrow keys to move the player and the space bar key to fire bullets. 
